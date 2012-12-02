@@ -4,35 +4,37 @@ HERE = File.expand_path(File.dirname(__FILE__))
 
 $: << File.join(HERE,"src","rake")
 
-SUPPORT_DIR = File.join(HERE,"support")
-JAR_DIR     = File.join(SUPPORT_DIR,"jars")
-ZINC_HOME   = File.join(SUPPORT_DIR,"zinc")
-ZINC        = File.join(ZINC_HOME,"bin","zinc")
-SCALA_HOME  = File.join(SUPPORT_DIR,"scala")
-SCALA       = File.join(SCALA_HOME,"bin","scala")
-OUTPUT_DIR  = File.join(HERE,"build","classes")
+SUPPORT_DIR     = File.join(HERE,"support")
+JAR_DIR         = File.join(SUPPORT_DIR,"jars")
+ZINC_HOME       = File.join(SUPPORT_DIR,"zinc")
+ZINC            = File.join(ZINC_HOME,"bin","zinc")
+SCALA_HOME      = File.join(SUPPORT_DIR,"scala")
+SCALA           = File.join(SCALA_HOME,"bin","scala")
+OUTPUT_DIR      = File.join(HERE,"build","classes")
+TEST_OUTPUT_DIR = File.join(HERE,"build","test","classes")
+SOURCES         = Dir["src/scala/**/*.scala"]
+TEST_SOURCES    = Dir["test/scala/**/*.scala"]
+VERBOSE         = false
+ZINC_LOG_LEVEL  = VERBOSE ? "info" : "warn"
 
 require File.join(HERE,'dependencies.rb')
 require 'dependency_management'
-setup_dependency_tasks(DEPENDENCIES,SUPPORT_DIR,JAR_DIR)
+JARS = setup_dependency_tasks(DEPENDENCIES,SUPPORT_DIR,JAR_DIR)
 
 CLEAN << OUTPUT_DIR
 
 directory OUTPUT_DIR
+directory TEST_OUTPUT_DIR
 directory SUPPORT_DIR
 directory JAR_DIR
 
 def zinc(*args)
-  sh "#{ZINC} -nailed -scala-home #{SCALA_HOME} -no-color #{args.join(' ')}"
-end
-
-def nailed?
-  `#{ZINC} -status`
-  $?.success?
+  sh "#{ZINC} -log-level #{ZINC_LOG_LEVEL} -nailed -scala-home #{SCALA_HOME} -no-color #{args.join(' ')}", :verbose => VERBOSE
 end
 
 task :nailed do
-  if nailed?
+  `#{ZINC} -status`
+  if $?.success?
     puts "Nailgun compiler running"
   else
     puts "Nailgun compiler not running"
@@ -44,11 +46,19 @@ task "nailed:shutdown" do
   zinc "-shutdown"
 end
 
-SOURCES = Dir["src/scala/**/*.scala"]
 
 desc "Compile out of date Scala classes"
 task :compile => ["support:setup",OUTPUT_DIR] do
   zinc "-d",OUTPUT_DIR,SOURCES
+end
+
+desc "Run tests"
+task :test => :compile do
+  zinc "-cp",(JARS + [OUTPUT_DIR]).join(":"),"-d",TEST_OUTPUT_DIR,TEST_SOURCES
+  test_classes = Dir["#{TEST_OUTPUT_DIR}/**/*.class"].map { |classfile|
+    classfile.gsub(/^#{TEST_OUTPUT_DIR}\//,'').gsub(/.class$/,'').gsub(/\//,'.')
+  }
+  sh "#{SCALA} -cp #{(JARS + [OUTPUT_DIR,TEST_OUTPUT_DIR]).join(':')} org.junit.runner.JUnitCore #{test_classes.join(' ')}", :verbose => VERBOSE
 end
 
 
@@ -57,8 +67,8 @@ task :run => :compile do
   sh "#{SCALA} -cp #{OUTPUT_DIR} main"
 end
 
-def support_link(pattern,destination)
-  candidates = Dir["#{SUPPORT_DIR}/#{pattern}*"]
+def link_version_to_generic(support_dir,pattern,destination)
+  candidates = Dir["#{support_dir}/#{pattern}*"]
   if candidates.size == 1
     ln_s candidates[0],destination
   else
@@ -67,10 +77,10 @@ def support_link(pattern,destination)
 end
 
 file SCALA_HOME => "dependency:scala" do
-  support_link "scala-2.10.0",SCALA_HOME
+  link_version_to_generic SUPPORT_DIR,"scala-2.10.0",SCALA_HOME
 end
 file ZINC_HOME => "dependency:zinc" do
-  support_link "zinc-",ZINC_HOME
+  link_version_to_generic SUPPORT_DIR,"zinc-",ZINC_HOME
 end
 
 desc "Setup symlinks to support commands"

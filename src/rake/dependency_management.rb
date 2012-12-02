@@ -5,7 +5,7 @@ def setup_unpackable_dep(name,url,dir)
   extension = parts.last
 
   file filename => dir do
-    sh "curl #{url} > #{archive}"
+    sh "curl -L #{url} > #{archive}"
     chdir dir do
       case extension.downcase
       when "tgz"
@@ -33,9 +33,11 @@ def setup_regular_dep(name,url,dir)
   end
   desc "Download and install #{name} if needed"
   task "dependency:#{name}" => jar_file
+  jar_file
 end
 
 def setup_dependency_tasks(dependencies,support_dir,jar_dir)
+  jars = []
   dependencies.each do |name,payload|
     url,unpack = if payload.kind_of?(Hash)
                    [payload[:url],payload[:unpack]]
@@ -45,8 +47,9 @@ def setup_dependency_tasks(dependencies,support_dir,jar_dir)
     if unpack
       setup_unpackable_dep(name,url,support_dir)
     else
-      setup_regular_dep(name,url,jar_dir)
+      jars << setup_regular_dep(name,url,jar_dir)
     end
   end
+  jars
 end
 

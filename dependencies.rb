@@ -7,5 +7,5 @@ DEPENDENCIES = {
     :url => "http://www.scala-lang.org/downloads/distrib/files/scala-2.10.0-RC3.tgz",
     :unpack => true,
   },
-  :scalatest => "https://oss.sonatype.org/content/groups/public/org/scalatest/scalatest_2.9.0/2.0.M5/scalatest_2.9.0-2.0.M5.jar",
+  :junit => "http://cloud.github.com/downloads/KentBeck/junit/junit-4.11.jar",
 }
