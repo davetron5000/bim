@@ -14,7 +14,7 @@ OUTPUT_DIR      = File.join(HERE,"build","classes")
 TEST_OUTPUT_DIR = File.join(HERE,"build","test","classes")
 SOURCES         = Dir["src/scala/**/*.scala"]
 TEST_SOURCES    = Dir["test/scala/**/*.scala"]
-VERBOSE         = false
+VERBOSE         = ENV["VERBOSE"] || false
 ZINC_LOG_LEVEL  = VERBOSE ? "info" : "warn"
 
 require File.join(HERE,'dependencies.rb')
@@ -29,7 +29,7 @@ directory SUPPORT_DIR
 directory JAR_DIR
 
 def zinc(*args)
-  sh "#{ZINC} -log-level #{ZINC_LOG_LEVEL} -nailed -scala-home #{SCALA_HOME} -no-color #{args.join(' ')}", :verbose => VERBOSE
+  sh "#{ZINC} -log-level #{ZINC_LOG_LEVEL} -S-deprecation -nailed -scala-home #{SCALA_HOME} -no-color #{args.join(' ')}", :verbose => VERBOSE
 end
 
 task :nailed do
