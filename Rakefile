@@ -10,8 +10,9 @@ ZINC_HOME       = File.join(SUPPORT_DIR,"zinc")
 ZINC            = File.join(ZINC_HOME,"bin","zinc")
 SCALA_HOME      = File.join(SUPPORT_DIR,"scala")
 SCALA           = File.join(SCALA_HOME,"bin","scala")
-OUTPUT_DIR      = File.join(HERE,"build","classes")
-TEST_OUTPUT_DIR = File.join(HERE,"build","test","classes")
+BUILD_DIR       = File.join(HERE,"build")
+OUTPUT_DIR      = File.join(BUILD_DIR,"classes")
+TEST_OUTPUT_DIR = File.join(BUILD_DIR,"test","classes")
 SOURCES         = Dir["src/scala/**/*.scala"]
 TEST_SOURCES    = Dir["test/scala/**/*.scala"]
 VERBOSE         = ENV["VERBOSE"] || false
@@ -21,7 +22,7 @@ require File.join(HERE,'dependencies.rb')
 require 'dependency_management'
 JARS = setup_dependency_tasks(DEPENDENCIES,SUPPORT_DIR,JAR_DIR)
 
-CLEAN << OUTPUT_DIR
+CLEAN << BUILD_DIR
 
 directory OUTPUT_DIR
 directory TEST_OUTPUT_DIR
@@ -29,7 +30,7 @@ directory SUPPORT_DIR
 directory JAR_DIR
 
 def zinc(*args)
-  sh "#{ZINC} -log-level #{ZINC_LOG_LEVEL} -S-deprecation -nailed -scala-home #{SCALA_HOME} -no-color #{args.join(' ')}", :verbose => VERBOSE
+  sh "#{ZINC} -idle-timeout 1h -log-level #{ZINC_LOG_LEVEL} -S-feature -S-deprecation -nailed -scala-home #{SCALA_HOME} -no-color #{args.join(' ')}", :verbose => VERBOSE
 end
 
 task :nailed do
@@ -57,7 +58,7 @@ task :test => :compile do
   zinc "-cp",(JARS + [OUTPUT_DIR]).join(":"),"-d",TEST_OUTPUT_DIR,TEST_SOURCES
   test_classes = Dir["#{TEST_OUTPUT_DIR}/**/*.class"].map { |classfile|
     classfile.gsub(/^#{TEST_OUTPUT_DIR}\//,'').gsub(/.class$/,'').gsub(/\//,'.')
-  }
+  }.select { |_| _ =~ /Test$/ }
   sh "#{SCALA} -cp #{(JARS + [OUTPUT_DIR,TEST_OUTPUT_DIR]).join(':')} org.junit.runner.JUnitCore #{test_classes.join(' ')}", :verbose => VERBOSE
 end
 

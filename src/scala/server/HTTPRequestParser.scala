@@ -5,73 +5,82 @@ import java.io.InputStream
 object HTTPRequestParser {
   class ParseError extends RuntimeException
 
+  /**
+   * parse the given InputStream as an HTTP request.
+   *
+   * @param inputStream input stream containing bytes that might be an HTTP request
+   *
+   * @return either an error or an http request
+   */
   def parse(inputStream:InputStream): Either[HTTPRequestParseError,HTTPRequest] = {
-    (for (method  <- readUntil(inputStream,SPACE);
-          uri     <- readUntil(inputStream,SPACE);
-          version <- parseVersion(inputStream);
-          headers <- parseHeaders(inputStream);
-          body    <- parseBody(inputStream)) yield HTTPRequest(method,uri,version,headers,body)) match {
-      case Some(request) => Right(request)
-      case None          => Left(new HTTPRequestParseError())
-    }
+    for (method  <- readUntil(inputStream,SPACE).right;
+         uri     <- readUntil(inputStream,SPACE).right;
+         version <- parseVersion(inputStream).right;
+         headers <- parseHeaders(inputStream).right;
+         body    <- parseBody(inputStream).right) yield HTTPRequest(method,uri,version,headers,body)
   }
 
-  private val SPACE:Int = 32
-  private val LF:Int = 10
-  private val CR:Int = 13
-  private val COLON:Int = ':'.toInt
+  private val SPACE : Int = ' '.toInt
+  private val LF    : Int = '\n'.toInt
+  private val CR    : Int = '\r'.toInt
+  private val COLON : Int = ':'. toInt
 
-  private def readUntil(inputStream:InputStream, stopChar:Int):Option[String] = {
+  private def readUntil(inputStream:InputStream, stopChar:Int):Either[HTTPRequestParseError,String] = {
     val buffer = new StringBuffer(256)
     var ch = inputStream.read()
     while (ch != stopChar) {
       if (ch == -1) {
-        return None
+        return Left(HTTPRequestParseError("EOF while reading method or URI"))
       }
       buffer.append(ch.toChar)
       ch = inputStream.read()
     }
-    Some(buffer.toString)
+    Right(buffer.toString)
   }
 
-  private def parseVersion(inputStream:InputStream):Option[String] = {
+  private def parseVersion(inputStream:InputStream):Either[HTTPRequestParseError,String] = {
     readUntil(inputStream,LF) match {
-      case Some(v) if v.startsWith("HTTP/") && v.endsWith("\r") && v.indexOf(".") >= 6 => Some(v.substring(5,v.length() - 1))
-      case _ => None
+      case Left(v)  => Left(v)
+      case Right(v) if v.startsWith("HTTP/") && v.endsWith("\r") && v.indexOf(".") >= 6 => Right(v.substring(5,v.length() - 1))
+      case Right(v) => { Left(HTTPRequestParseError("'" + v.trim + "' doesn't look like an HTTP version string")) }
     }
   }
 
-  private def parseHeaders(inputStream:InputStream):Option[Map[String,String]] = {
+  private def parseHeaders(inputStream:InputStream):Either[HTTPRequestParseError,Map[String,String]] = {
     var done    : Boolean            = false
-    var ch                           = inputStream.read()
     var headers : Map[String,String] = Map()
+    def isCRorLF(ch:Int)             = (ch == CR) || (ch == LF)
+    var ch                           = inputStream.read()
 
     while (!done) {
-      var key                          = new StringBuffer(80)
-      var value                        = new StringBuffer(256)
-      var inValue : Boolean            = false
-
-      var prevCh = -1
+      var key               = new StringBuffer(80)
+      var value             = new StringBuffer(256)
+      var inValue : Boolean = false
+      var prevCh            = -1
 
       while ( (prevCh != CR) && (ch != LF) ) {
-        if (ch == -1) return None 
+
+        if (ch == -1) return Left(HTTPRequestParseError("EOF while parsing headers"))
+
         if (inValue) {
-          if ((ch != CR) && (ch != LF)) value.append(ch.toChar)
+          if (!isCRorLF(ch)) value.append(ch.toChar)
         }
         else if (ch == COLON) {
           inValue = true
         }
         else {
-          if ((ch != CR) && (ch != LF)) key.append(ch.toChar)
+          if (!isCRorLF(ch)) key.append(ch.toChar)
         }
+
         prevCh = ch
-        ch = inputStream.read()
+        ch     = inputStream.read()
       }
       if (key.length() > 0) headers = headers + (key.toString.toLowerCase.trim -> value.toString.trim)
-      ch = inputStream.read();
+
+      ch   = inputStream.read();
       done = ch == -1
     }
-    Some(headers)
+    Right(headers)
   }
-  private def parseBody(inputStream:InputStream) = Some(None)
+  private def parseBody(inputStream:InputStream) = Right(None)
 }

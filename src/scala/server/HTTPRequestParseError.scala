@@ -1,4 +1,4 @@
 package bim.server
 
-class HTTPRequestParseError {
+case class HTTPRequestParseError(errorMessage:String) {
 }
