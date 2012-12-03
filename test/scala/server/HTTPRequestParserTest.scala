@@ -17,7 +17,7 @@ class HTTPRequestParserTest {
     val parsed = HTTPRequestParser.parse(inputStream)
 
     parsed.fold(
-      error => assert(false,"Expected a successful parse"),
+      error => fail(s"Expected a successful parse ($error)"),
       parsedRequest => {
         assertEquals("GET",parsedRequest.method)
         assertEquals("/",parsedRequest.uri)
@@ -32,13 +32,18 @@ class HTTPRequestParserTest {
   def `request with headers` = {
     val accept = "text/html"
     val userAgent = "foobar"
-    val request = s"GET / HTTP/1.1\r\nAccept: $accept\r\nUser-Agent: $userAgent\r\n"
+    val request = List(
+      "GET / HTTP/1.1",
+      s"Accept: $accept",
+      s"User-Agent: $userAgent",
+      ""
+      ).mkString("\r\n")
     val inputStream = new ByteArrayInputStream(request.getBytes("utf-8"))
 
     val parsed = HTTPRequestParser.parse(inputStream)
 
     parsed.fold(
-      error => assert(false,"Expected a successful parse"),
+      error => fail(s"Expected a successful parse :$error"),
       parsedRequest => {
         assertEquals("GET",parsedRequest.method)
         assertEquals("/",parsedRequest.uri)
@@ -75,7 +80,7 @@ class HTTPRequestParserTest {
 
       parsed.fold(
         error => (),
-        parsedRequest => assert(false,s"Expected a bad request for $request")
+        parsedRequest => fail(s"Expected a bad request for $request")
       )
     }
   }

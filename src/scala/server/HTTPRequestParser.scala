@@ -18,7 +18,7 @@ object HTTPRequestParser {
          uri     <- readUntil(inputStream,SPACE).right;
          version <- parseVersion(inputStream).right;
          headers <- parseHeaders(inputStream).right;
-         body    <- parseBody(inputStream).right) yield HTTPRequest(method,uri,version,headers,body)
+         body    <- parseBody(inputStream,headers).right) yield HTTPRequest(method,uri,version,headers,body)
   }
 
   private val SPACE : Int = ' '.toInt
@@ -90,5 +90,5 @@ object HTTPRequestParser {
     }
     Right(headers)
   }
-  private def parseBody(inputStream:InputStream) = Right(None)
+  private def parseBody(inputStream:InputStream, headers:Map[String,String]) = Right(None)
 }
