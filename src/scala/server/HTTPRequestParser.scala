@@ -1,4 +1,5 @@
-package bim.server
+package bim
+package server
 
 import java.io.InputStream
 
@@ -10,7 +11,7 @@ object HTTPRequestParser {
    *
    * @param inputStream input stream containing bytes that might be an HTTP request
    *
-   * @return either an error or an http request
+   * @return If a `Right`, the request was parsed successfully.  If a `Left`, there was a problem
    */
   def parse(inputStream:InputStream): Either[HTTPRequestParseError,HTTPRequest] = {
     for (method  <- readUntil(inputStream,SPACE).right;
@@ -63,19 +64,26 @@ object HTTPRequestParser {
         if (ch == -1) return Left(HTTPRequestParseError("EOF while parsing headers"))
 
         if (inValue) {
-          if (!isCRorLF(ch)) value.append(ch.toChar)
+          unless (isCRorLF(ch)) { 
+            value.append(ch.toChar)
+          }
         }
         else if (ch == COLON) {
           inValue = true
         }
         else {
-          if (!isCRorLF(ch)) key.append(ch.toChar)
+          unless (isCRorLF(ch)) {
+            key.append(ch.toChar)
+          }
         }
 
         prevCh = ch
         ch     = inputStream.read()
       }
-      if (key.length() > 0) headers = headers + (key.toString.toLowerCase.trim -> value.toString.trim)
+      if (key.length() > 0) {
+        if (!inValue) return Left(HTTPRequestParseError(s"Expected : for header $key"))
+        headers = headers + (key.toString.toLowerCase.trim -> value.toString.trim)
+      }
 
       ch   = inputStream.read();
       done = ch == -1

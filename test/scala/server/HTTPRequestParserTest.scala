@@ -52,6 +52,8 @@ class HTTPRequestParserTest {
   }
 
   val BAD_REQUESTS = List(
+    "GET / HTTP/1.1\r\nasdfaskdfjasldfkjasd\r\n",
+    "GET / HTTP/1.1\r\nAccept: text/html\r\nasdfaskdfjasldfkjasd\r\n",
     "GET / HTP/1.1\r\n",
     "GET / TTPH/1.1\r\n",
     "GET / HTTP/111\r\n",
