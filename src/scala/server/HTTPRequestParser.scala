@@ -83,12 +83,30 @@ object HTTPRequestParser {
       if (key.length() > 0) {
         if (!inValue) return Left(HTTPRequestParseError(s"Expected : for header $key"))
         headers = headers + (key.toString.toLowerCase.trim -> value.toString.trim)
+        ch      = inputStream.read();
+        done    = ch == -1
       }
-
-      ch   = inputStream.read();
-      done = ch == -1
+      else {
+        done = true
+      }
     }
     Right(headers)
   }
-  private def parseBody(inputStream:InputStream, headers:Map[String,String]) = Right(None)
+  private def parseBody(inputStream:InputStream, headers:Map[String,String]):Either[HTTPRequestParseError,Option[Array[Byte]]] = {
+    val ch = inputStream.read();
+    headers.get("content-length") match {
+      case None if ch != -1 => Left(HTTPRequestParseError("Expecting a 'content-length' header"))
+      case None if ch == -1 => Right(None)
+      case Some(lengthString) => {
+        val length = lengthString.toInt
+        val buffer = new Array[Byte](length)
+        buffer(0) = ch.toByte
+        for (i <- 1 until length) {
+          buffer(i) = inputStream.read.toByte
+        }
+        println(new String(buffer,"utf-8"))
+        Right(Some(buffer))
+      }
+    }
+  }
 }

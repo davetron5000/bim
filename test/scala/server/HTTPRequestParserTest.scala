@@ -56,6 +56,37 @@ class HTTPRequestParserTest {
     )
   }
 
+  @Test
+  def `request with headers and a body` = {
+    val userAgent = "foobar"
+    val content = "This is the content that we are\npassing along\nand it's got stuff in it\r\nAnd all that"
+    val request = List(
+      "GET / HTTP/1.1",
+      "Content-Length: " + content.length,
+      s"User-Agent: $userAgent",
+      "",
+      content
+      ).mkString("\r\n")
+    val inputStream = new ByteArrayInputStream(request.getBytes("utf-8"))
+
+    val parsed = HTTPRequestParser.parse(inputStream)
+
+    parsed.fold(
+      error => fail(s"Expected a successful parse :$error"),
+      parsedRequest => {
+        assertEquals("GET",parsedRequest.method)
+        assertEquals("/",parsedRequest.uri)
+        assertEquals("1.1",parsedRequest.version)
+        assertEquals(userAgent,parsedRequest.headers("user-agent"))
+        assertEquals(2,parsedRequest.headers.size)
+        parsedRequest.body match {
+          case None => fail("Expected a body")
+          case Some(body) => assertEquals(content,new String(body,"utf-8"))
+        }
+      }
+    )
+  }
+
   val BAD_REQUESTS = List(
     "GET / HTTP/1.1\r\nasdfaskdfjasldfkjasd\r\n",
     "GET / HTTP/1.1\r\nAccept: text/html\r\nasdfaskdfjasldfkjasd\r\n",
