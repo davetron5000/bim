@@ -30,12 +30,15 @@ class HTTPRequestParserTest {
 
   @Test
   def `request with headers` = {
-    val accept = "text/html"
+    val accept1 = "text/html"
+    val accept2 = "text/xml"
+    val accept3 = "text/plain"
     val userAgent = "foobar"
     val request = List(
       "GET / HTTP/1.1",
-      s"Accept: $accept",
+      s"Accept: $accept1",
       s"User-Agent: $userAgent",
+      s"Accept: $accept2, $accept3",
       ""
       ).mkString("\r\n")
     val inputStream = new ByteArrayInputStream(request.getBytes("utf-8"))
@@ -48,8 +51,11 @@ class HTTPRequestParserTest {
         assertEquals("GET",parsedRequest.method)
         assertEquals("/",parsedRequest.uri)
         assertEquals("1.1",parsedRequest.version)
-        assertEquals(accept,parsedRequest.headers("accept"))
-        assertEquals(userAgent,parsedRequest.headers("user-agent"))
+        assert(parsedRequest.headers("accept").contains(accept1))
+        assert(parsedRequest.headers("accept").contains(accept2))
+        assert(parsedRequest.headers("accept").contains(accept3))
+        assertEquals(3,parsedRequest.headers("accept").size)
+        assertEquals(userAgent,parsedRequest.header("user-agent").get)
         assertEquals(2,parsedRequest.headers.size)
         assertEquals(None,parsedRequest.body)
       }
@@ -77,7 +83,7 @@ class HTTPRequestParserTest {
         assertEquals("GET",parsedRequest.method)
         assertEquals("/",parsedRequest.uri)
         assertEquals("1.1",parsedRequest.version)
-        assertEquals(userAgent,parsedRequest.headers("user-agent"))
+        assertEquals(userAgent,parsedRequest.header("user-agent").get)
         assertEquals(2,parsedRequest.headers.size)
         parsedRequest.body match {
           case None => fail("Expected a body")
@@ -88,6 +94,7 @@ class HTTPRequestParserTest {
   }
 
   val BAD_REQUESTS = List(
+    "GET / HTTP/1.1\r\nContent-Length: 5000\r\nadfasdfasdf",
     "GET / HTTP/1.1\r\nasdfaskdfjasldfkjasd\r\n",
     "GET / HTTP/1.1\r\nAccept: text/html\r\nasdfaskdfjasldfkjasd\r\n",
     "GET / HTP/1.1\r\n",

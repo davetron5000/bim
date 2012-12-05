@@ -86,3 +86,5 @@ end
 
 desc "Setup symlinks to support commands"
 task "support:setup" => ([SCALA_HOME,ZINC_HOME] + DEPENDENCIES.keys.map { |_| "dependency:#{_}" })
+
+task :default => :test
