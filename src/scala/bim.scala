@@ -4,4 +4,11 @@ package object bim {
       body
     }
   }
+
+  implicit class Tapper[A](obj:A) {
+    def tap[B](code: A => B) = {
+      code(obj)
+      obj
+    }
+  }
 }
