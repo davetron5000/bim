@@ -4,10 +4,18 @@ package server
 import java.net._
 import java.util.concurrent.atomic._
 
+/** A simple HTTP server.
+ * @param port port on which to listen
+ * @param inetAddress InetAddress on which to listen
+ * @param backlog backlog queue for creating underlying ServerSocket
+ * @param timeout How long to wait for connections
+ * @param dispatcher object to dispatch received requests
+ */
 class HTTPServer(port        : Int,
                  inetAddress : InetAddress,
                  backlog     : Int = 50,
-                 timeout     : Int = 50) {
+                 timeout     : Int = 50,
+                 dispatcher  : Dispatcher = InlineDispatcher) {
 
   private val running = new AtomicBoolean(false)
 
@@ -34,23 +42,8 @@ class HTTPServer(port        : Int,
     serverSocket.setSoTimeout(timeout)
   }
 
-  private def dispatch(socket:Socket):Unit = try {
+  private def dispatch(socket:Socket):Unit = {
     socket.setSoTimeout(timeout)
-
-    val inputStream  = socket.getInputStream
-    val outputStream = socket.getOutputStream
-    val request      = HTTPRequestParser.parse(inputStream)
-    val response     = HTTPResponse(status = "200", reasonPhrase = "OK")
-
-    HTTPResponseSerializer.serialize(response,outputStream)
-
-    outputStream.flush
-    outputStream.close
-  }
-  catch {
-    case ex:SocketTimeoutException => {
-      println(s"Client socket exception: ${ex.getMessage}")
-      socket.close
-    }
+    dispatcher.dispatch(socket)
   }
 }
