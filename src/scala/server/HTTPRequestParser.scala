@@ -3,9 +3,8 @@ package server
 
 import java.io.InputStream
 
+/** Parses an HTTP Request */
 object HTTPRequestParser {
-  class ParseError extends RuntimeException
-
   /**
    * parse the given InputStream as an HTTP request.
    *

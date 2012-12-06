@@ -1,5 +1,6 @@
 package bim.server
 
+/** Holds the parsed HTTP request */
 case class HTTPRequest(val method  : String,
                        val uri     : String,
                        val version : String,
