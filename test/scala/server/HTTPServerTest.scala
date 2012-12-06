@@ -2,44 +2,41 @@ package bim.server
 
 import org.junit._
 import org.junit.Assert._
-import org.mockito.Mockito._
 
 import scala.util.Random
 import java.net._
 
 class HTTPServerTest {
 
-  @Test
-  def `server, when started, will listen on the configured address and port`:Unit = {
-    val serverSocket                   = mock(classOf[ServerSocket])
-    var portGiven        : Int         = -1
-    var inetAddressGiven : InetAddress = null
-    val port                           = anyPort
-    val inetAddress                    = anyInetAddress
-
-    val server  = HTTPServer(port,inetAddress,{ (p:Int, i:InetAddress) => 
-      portGiven        = port
-      inetAddressGiven = inetAddress
-      serverSocket 
-    })
-
-    when(serverSocket.accept()).thenReturn(null)
-
-    server.start
-
-    verify(serverSocket).accept()
-    assertEquals(port,portGiven)
-    assertEquals(inetAddress,inetAddressGiven)
+  class ServerRunner(server:HTTPServer) extends Runnable {
+    def run:Unit = { server.start }
   }
 
-  private def anyPort = Random.nextInt(65536)
-  private def anyInetAddress = {
-    val one   = Random.nextInt(256)
-    val two   = Random.nextInt(256)
-    val three = Random.nextInt(256)
-    val four  = Random.nextInt(256)
+  @Test
+  def `basic test` = {
+    val localhost = InetAddress.getLocalHost
+    val server = new HTTPServer(8080,localhost)
 
-    InetAddress.getByName(s"$one.$two.$three.$four")
+    val thread = new Thread(new ServerRunner(server))
+
+    thread.start
+
+    val socket = new Socket(localhost.getHostAddress,8080)
+    socket.getOutputStream.write("GET /foo/bar HTTP/1.1\r\n\r\n".getBytes("utf-8"))
+
+    val stream = socket.getInputStream
+
+    val buffer = new StringBuffer("")
+    var ch = stream.read
+    while (ch != -1) {
+      buffer.append(ch.toChar)
+      ch = stream.read
+    }
+
+    server.stop
+    thread.join
+
+    assertEquals("HTTP/1.1 200 OK\r\n\r\n",buffer.toString)
   }
 }
 // vim: set ts=2 sw=2 et:

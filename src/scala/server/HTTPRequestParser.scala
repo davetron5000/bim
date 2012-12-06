@@ -13,38 +13,46 @@ object HTTPRequestParser {
    * @return If a `Right`, the request was parsed successfully.  If a `Left`, there was a problem
    */
   def parse(inputStream:InputStream): Either[HTTPRequestParseError,HTTPRequest] = {
-    for (method  <- readUntil(inputStream,SPACE).right;
-         uri     <- readUntil(inputStream,SPACE).right;
-         version <- parseVersion(inputStream).right;
+    for (methodURIAndVersion <- readRequestLine(inputStream).right;
          headers <- parseHeaders(inputStream).right;
-         body    <- parseBody(inputStream,headers).right) yield HTTPRequest(method,uri,version,headers,body)
+         body    <- parseBody(inputStream,headers).right) yield HTTPRequest(methodURIAndVersion._1,
+                                                                            methodURIAndVersion._2,
+                                                                            methodURIAndVersion._3,
+                                                                            headers,
+                                                                            body)
+  }
+
+  private def readLine(inputStream:InputStream):Either[HTTPRequestParseError,String] = {
+    val buffer = new StringBuffer(256)
+    var ch = inputStream.read
+    while (ch != CR && ch !=  -1) {
+      buffer.append(ch.toChar)
+      ch = inputStream.read
+    }
+    if (ch == CR) {
+      ch = inputStream.read
+      if (ch != -1 && ch != LF)
+        return Left(new HTTPRequestParseError("Got CR, but not LF"))
+    }
+    Right(buffer.toString())
+  }
+
+  private def readRequestLine(inputStream:InputStream):Either[HTTPRequestParseError,(String,String,String)] = {
+    readLine(inputStream).fold(
+      error => Left(error),
+      parsedLine => parsedLine.split(" ").toList match {
+        case method :: uri :: version :: rest if version.startsWith("HTTP/") => Right((method,uri,version.substring(5)))
+        case method :: uri :: version :: rest => Left(new HTTPRequestParseError(s"version string $version is invalid"))
+        case method :: uri :: Nil             => Right((method,uri,"1.0"))
+        case _                                => Left(new HTTPRequestParseError("request line missing uri and version"))
+      }
+    )
   }
 
   private val SPACE : Int = ' '.toInt
   private val LF    : Int = '\n'.toInt
   private val CR    : Int = '\r'.toInt
   private val COLON : Int = ':'. toInt
-
-  private def readUntil(inputStream:InputStream, stopChar:Int):Either[HTTPRequestParseError,String] = {
-    val buffer = new StringBuffer(256)
-    var ch = inputStream.read()
-    while (ch != stopChar) {
-      if (ch == -1) {
-        return Left(HTTPRequestParseError("EOF while reading method or URI"))
-      }
-      buffer.append(ch.toChar)
-      ch = inputStream.read()
-    }
-    Right(buffer.toString)
-  }
-
-  private def parseVersion(inputStream:InputStream):Either[HTTPRequestParseError,String] = {
-    readUntil(inputStream,LF) match {
-      case Left(v)  => Left(v)
-      case Right(v) if v.startsWith("HTTP/") && v.endsWith("\r") && v.indexOf(".") >= 6 => Right(v.substring(5,v.length() - 1))
-      case Right(v) => { Left(HTTPRequestParseError("'" + v.trim + "' doesn't look like an HTTP version string")) }
-    }
-  }
 
   private def parseHeaders(inputStream:InputStream):Either[HTTPRequestParseError,Map[String,List[String]]] = {
     var done    : Boolean                  = false
@@ -100,11 +108,9 @@ object HTTPRequestParser {
 
   private def parseBody(inputStream : InputStream, 
                         headers     : Map[String,List[String]]) : Either[HTTPRequestParseError,Option[Array[Byte]]] = {
-    val ch = inputStream.read();
     headers.get("content-length") match {
-      case None if ch != -1 => Left(HTTPRequestParseError("Expecting a 'content-length' header"))
-      case None if ch == -1 => Right(None)
       case Some(lengthString :: rest) => {
+        val ch = inputStream.read();
         val length = lengthString.toInt
         val buffer = new Array[Byte](length)
         buffer(0) = ch.toByte
@@ -113,6 +119,7 @@ object HTTPRequestParser {
         }
         Right(Some(buffer))
       }
+      case _ => Right(None)
     }
   }
 }

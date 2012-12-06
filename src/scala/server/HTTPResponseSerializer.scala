@@ -3,7 +3,7 @@ package server
 
 import scala.language.implicitConversions
 
-import java.io.OutputStream
+import java.io._
 
 /** Serializes a response to a stream */
 object HTTPResponseSerializer {

@@ -29,6 +29,44 @@ class HTTPRequestParserTest {
   }
 
   @Test
+  def `very minimal request` = {
+    val request = "GET /\r\n\r\n"
+    val inputStream = new ByteArrayInputStream(request.getBytes("utf-8"))
+
+    val parsed = HTTPRequestParser.parse(inputStream)
+
+    parsed.fold(
+      error => fail(s"Expected a successful parse ($error)"),
+      parsedRequest => {
+        assertEquals("GET",parsedRequest.method)
+        assertEquals("/",parsedRequest.uri)
+        assertEquals("1.0",parsedRequest.version)
+        assert(parsedRequest.headers.isEmpty,parsedRequest.headers.toString)
+        assertEquals(None,parsedRequest.body)
+      }
+    )
+  }
+
+  @Test
+  def `minimal request ignores body` = {
+    val request = "GET / HTTP/1.1\r\n\r\nasdkfhaskdjfhaskdfhaskdfhkashfjsdkf"
+    val inputStream = new ByteArrayInputStream(request.getBytes("utf-8"))
+
+    val parsed = HTTPRequestParser.parse(inputStream)
+
+    parsed.fold(
+      error => fail(s"Expected a successful parse ($error)"),
+      parsedRequest => {
+        assertEquals("GET",parsedRequest.method)
+        assertEquals("/",parsedRequest.uri)
+        assertEquals("1.1",parsedRequest.version)
+        assert(parsedRequest.headers.isEmpty,parsedRequest.headers.toString)
+        assertEquals(None,parsedRequest.body)
+      }
+    )
+  }
+
+  @Test
   def `request with headers` = {
     val accept1 = "text/html"
     val accept2 = "text/xml"
@@ -95,7 +133,6 @@ class HTTPRequestParserTest {
 
   val BAD_REQUESTS = List(
     "GET / HTTP/1.1\r\nContent-Length: 5000\r\nadfasdfasdf",
-    "GET / HTTP/1.1\r\nasdfaskdfjasldfkjasd\r\n",
     "GET / HTTP/1.1\r\nAccept: text/html\r\nasdfaskdfjasldfkjasd\r\n",
     "GET / HTP/1.1\r\n",
     "GET / TTPH/1.1\r\n",
@@ -103,7 +140,6 @@ class HTTPRequestParserTest {
     "GET / HTTP/1.1\r",
     "GET / HTTP/1.1",
     "GET / HTTP/1",
-    "GET /",
     "GET ",
     "G",
     ""
