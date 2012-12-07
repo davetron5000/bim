@@ -27,7 +27,7 @@ class HTTPServer(port        : Int,
         dispatch(serverSocket.accept)
       }
       catch {
-        case ex:SocketTimeoutException => println(ex.getMessage)
+        case ex:SocketTimeoutException => {}
       }
     }
     serverSocket.close
@@ -38,11 +38,12 @@ class HTTPServer(port        : Int,
   }
 
   private def setupSocket:ServerSocket = (new ServerSocket(port,backlog,inetAddress)).tap { serverSocket =>
-    println(s"ServerSocket ${if (serverSocket.isBound) 'bound else 'notbound} to port ${serverSocket.getLocalPort}, ${serverSocket.getInetAddress}")
+    println(s"Listening on $inetAddress/$port")
     serverSocket.setSoTimeout(timeout)
   }
 
   private def dispatch(socket:Socket):Unit = {
+    println("Dispatching request")
     socket.setSoTimeout(timeout)
     dispatcher.dispatch(socket)
   }

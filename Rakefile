@@ -63,11 +63,6 @@ task :test => :compile do
 end
 
 
-desc "Run the app"
-task :run => :compile do
-  sh "#{SCALA} -cp #{OUTPUT_DIR} main"
-end
-
 def link_version_to_generic(support_dir,pattern,destination)
   candidates = Dir["#{support_dir}/#{pattern}*"]
   if candidates.size == 1
@@ -87,4 +82,10 @@ end
 desc "Setup symlinks to support commands"
 task "support:setup" => ([SCALA_HOME,ZINC_HOME] + DEPENDENCIES.keys.map { |_| "dependency:#{_}" })
 
+desc "run an app"
+task :run, [:klass] => [:compile] do |t, args|
+  klass = args.klass
+  raise "Need a class" if klass.nil?
+  sh "#{SCALA} -cp #{(JARS + [OUTPUT_DIR]).join(':')} #{klass}"
+end
 task :default => :test
