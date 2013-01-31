@@ -65,11 +65,37 @@ end
 
 def link_version_to_generic(support_dir,pattern,destination)
   candidates = Dir["#{support_dir}/#{pattern}*"]
-  if candidates.size == 1
-    ln_s candidates[0],destination
-  else
-    raise "Don't know how to handle #{candidates.size} scala installs"
+  candidates = candidates.reject {|_| _ =~ /-RC\d+$/ } if candidates.size > 1
+  candidates = candidates.sort { |a,b|
+    a_version = if a =~ /^.*-(\d+\.\d+\.\d+)$/
+                  $1
+                else
+                  "0.0.0"
+                end
+    b_version = if b =~ /^.*-(\d+\.\d+\.\d+)$/
+                  $1
+                else
+                  "0.0.0"
+                end
+    a_major,a_minor,a_patch = a_version.split(".")
+    b_major,b_minor,b_patch = a_version.split(".")
+
+    if a_major == b_major
+      if a_minor == b_minor
+        a_patch <=> b_patch
+      else
+        a_minor <=> b_minor
+      end
+    else
+      a_major <=> b_major
+    end
+  }
+  candidate = candidates.last
+  raise "No #{pattern} installs faound!" if candidate.nil?
+  if candidates.size > 1
+    puts "Found two installs for #{pattern}, using #{candidate}"
   end
+  ln_s candidate,destination
 end
 
 file SCALA_HOME => "dependency:scala" do
