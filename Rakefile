@@ -4,22 +4,24 @@ HERE = File.expand_path(File.dirname(__FILE__))
 
 $: << File.join(HERE,"src","rake")
 
-SUPPORT_DIR     = File.join(HERE,"support")
-JAR_DIR         = File.join(SUPPORT_DIR,"jars")
-ZINC_HOME       = File.join(SUPPORT_DIR,"zinc")
-ZINC            = File.join(ZINC_HOME,"bin","zinc")
-SCALA_HOME      = File.join(SUPPORT_DIR,"scala")
-SCALA           = File.join(SCALA_HOME,"bin","scala")
-BUILD_DIR       = File.join(HERE,"build")
-OUTPUT_DIR      = File.join(BUILD_DIR,"classes")
-TEST_OUTPUT_DIR = File.join(BUILD_DIR,"test","classes")
-SOURCES         = Dir["src/scala/**/*.scala"]
-TEST_SOURCES    = Dir["test/scala/**/*.scala"]
-VERBOSE         = ENV["VERBOSE"] || false
-ZINC_LOG_LEVEL  = VERBOSE ? "info" : "warn"
+SUPPORT_DIR       = File.join(HERE,"support")
+JAR_DIR           = File.join(SUPPORT_DIR,"jars")
+ZINC_HOME         = File.join(SUPPORT_DIR,"zinc")
+ZINC              = File.join(ZINC_HOME,"bin","zinc")
+SCALA_HOME        = File.join(SUPPORT_DIR,"scala")
+SCALA             = File.join(SCALA_HOME,"bin","scala")
+BUILD_DIR         = File.join(HERE,"build")
+OUTPUT_DIR        = File.join(BUILD_DIR,"classes")
+TEST_OUTPUT_DIR   = File.join(BUILD_DIR,"test","classes")
+SOURCES           = Dir["src/scala/**/*.scala"]
+UNIT_TEST_SOURCES = Dir["test/unit/scala/**/*.scala"]
+PERF_TEST_SOURCES = Dir["test/performance/*/test.rb"]
+VERBOSE           = ENV["VERBOSE"] || false
+ZINC_LOG_LEVEL    = VERBOSE ? "info" : "warn"
 
 require File.join(HERE,'dependencies.rb')
 require 'dependency_management'
+require 'performance_test'
 JARS = setup_dependency_tasks(DEPENDENCIES,SUPPORT_DIR,JAR_DIR)
 
 CLEAN << BUILD_DIR
@@ -53,13 +55,25 @@ task :compile => ["support:setup",OUTPUT_DIR] do
   zinc "-d",OUTPUT_DIR,SOURCES
 end
 
-desc "Run tests"
-task :test => :compile do
-  zinc "-cp",(JARS + [OUTPUT_DIR]).join(":"),"-d",TEST_OUTPUT_DIR,TEST_SOURCES
+task :test => ['test:unit','test:performance']
+
+desc "Run unit tests"
+task 'test:unit' => :compile do
+  zinc "-cp",(JARS + [OUTPUT_DIR]).join(":"),"-d",TEST_OUTPUT_DIR,UNIT_TEST_SOURCES
   test_classes = Dir["#{TEST_OUTPUT_DIR}/**/*.class"].map { |classfile|
     classfile.gsub(/^#{TEST_OUTPUT_DIR}\//,'').gsub(/.class$/,'').gsub(/\//,'.')
   }.select { |_| _ =~ /Test$/ }
   sh "#{SCALA} -cp #{(JARS + [OUTPUT_DIR,TEST_OUTPUT_DIR]).join(':')} org.junit.runner.JUnitCore #{test_classes.join(' ')}", :verbose => VERBOSE
+end
+
+desc 'Run performance tests'
+task 'test:performance' => :compile do
+  printf("%-20s|%12s|%12s|\n","TEST","SERIAL","PARALLEL")
+  puts "-" * (20 + 12 + 12 + 3)
+  tests = PERF_TEST_SOURCES.each do |test_file|
+    single,threaded,error = run_performance_test(test_file)
+    printf("%20s|%10.2fms|%10.2fms|%s\n",test_file[-20..-1],single || 0,threaded || 0,error && error.message)
+  end
 end
 
 
