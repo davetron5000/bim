@@ -10,9 +10,10 @@ object HTTPRequestParser {
    *
    * @param inputStream input stream containing bytes that might be an HTTP request
    *
-   * @return If a `Right`, the request was parsed successfully.  If a `Left`, there was a problem
+   * @return If a `Right`, the request was parsed successfully.  If a `Left`, there was a problem.  Any exception that is
+   * caught will result in a `Left` being returned - check the `exception` method of `HTTPRequestParseError`
    */
-  def parse(inputStream:InputStream): Either[HTTPRequestParseError,HTTPRequest] = {
+  def parse(inputStream:InputStream): Either[HTTPRequestParseError,HTTPRequest] = try {
     for (methodURIAndVersion <- readRequestLine(inputStream).right;
          headers <- parseHeaders(inputStream).right;
          body    <- parseBody(inputStream,headers).right) yield HTTPRequest(methodURIAndVersion._1,
@@ -20,6 +21,8 @@ object HTTPRequestParser {
                                                                             methodURIAndVersion._3,
                                                                             headers,
                                                                             body)
+  } catch {
+    case ex:Exception => Left(new HTTPRequestParseError(ex))
   }
 
   private def readLine(inputStream:InputStream):Either[HTTPRequestParseError,String] = {

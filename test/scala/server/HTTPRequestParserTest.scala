@@ -5,9 +5,27 @@ import org.junit.Assert._
 
 import scala.util.Random
 import java.io._
+import java.net._
+
+import org.mockito.Mockito._
 
 class HTTPRequestParserTest {
   val testDataLocation = "test/data/http_requests"
+
+  @Test
+  def `request with a timeout` = {
+    val inputStream = mock(classOf[InputStream])
+    val exceptionMessage = "There was a timeout"
+    when(inputStream.read).thenThrow(new SocketTimeoutException(exceptionMessage))
+    val parsed = HTTPRequestParser.parse(inputStream)
+    parsed.fold(
+      error => {
+        assertEquals(exceptionMessage,error.errorMessage)
+        assertEquals(classOf[SocketTimeoutException],error.exception.get.getClass)
+      },
+      parsedRequest => fail("Expected an error, but got a " + parsedRequest)
+    )
+  }
 
   @Test
   def `minimal request` = {

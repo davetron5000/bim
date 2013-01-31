@@ -10,7 +10,7 @@ object InlineDispatcher extends Dispatcher {
     val outputStream = socket.getOutputStream
     val request      = HTTPRequestParser.parse(inputStream)
     println(s"Handling $request")
-    val response     = EverythingsOKHandler.handle(request)
+    val response     = RequestValidationHandler.handle(request)
 
     HTTPResponseSerializer.serialize(response,outputStream)
 
