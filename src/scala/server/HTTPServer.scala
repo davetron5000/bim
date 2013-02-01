@@ -38,7 +38,7 @@ class HTTPServer(port        : Int,
   }
 
   private def setupSocket:ServerSocket = (new ServerSocket(port,backlog,inetAddress)).tap { serverSocket =>
-    println(s"Listening on $inetAddress/$port")
+    println(s"Listening on $inetAddress/$port with timeout $timeout")
     serverSocket.setSoTimeout(timeout)
   }
 

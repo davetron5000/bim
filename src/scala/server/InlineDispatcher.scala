@@ -11,6 +11,7 @@ object InlineDispatcher extends Dispatcher {
     val request      = HTTPRequestParser.parse(inputStream)
     println(s"Handling $request")
     val response     = RequestValidationHandler.handle(request)
+    println(s"Sending $response")
 
     HTTPResponseSerializer.serialize(response,outputStream)
 

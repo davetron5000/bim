@@ -68,11 +68,13 @@ end
 
 desc 'Run performance tests'
 task 'test:performance' => :compile do
-  printf("%-20s|%12s|%12s|\n","TEST","SERIAL","PARALLEL")
-  puts "-" * (20 + 12 + 12 + 3)
+  printf("%-40s|%12s|%12s|\n","TEST","SERIAL","PARALLEL")
+  puts "-" * (40 + 12 + 12 + 3)
   tests = PERF_TEST_SOURCES.each do |test_file|
     single,threaded,error = run_performance_test(test_file)
-    printf("%20s|%10.2fms|%10.2fms|%s\n",test_file[-20..-1],single || 0,threaded || 0,error && error.message)
+    desc = @config[:description] || test_file
+    shortened_desc = desc.length <= 40 ? desc : desc[-40..-1]
+    printf("%40s|%10.2fms|%10.2fms|%s\n",shortened_desc,single || 0,threaded || 0,error && error.message)
   end
 end
 

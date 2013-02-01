@@ -7,7 +7,7 @@ def run_performance_test(test_file)
   load test_file
   raise "#{test_file} didn't set @config!" if @config.nil?
   args = Array(@config.fetch(:args)).join(' ')
-  pid = Process.spawn("#{SCALA} -cp #{(JARS + [OUTPUT_DIR]).join(':')} #{@config.fetch(:app)} #{args} > /dev/null 2>&1", :pgroup => true)
+  pid = Process.spawn("#{SCALA} -cp #{(JARS + [OUTPUT_DIR]).join(':')} #{@config.fetch(:app)} #{args} >> /tmp/server.log 2>&1", :pgroup => true)
   process_group_id = Process.getpgid(pid)
   sleep 2 # allow startup
   begin
@@ -32,7 +32,7 @@ module PerformanceTest
       t = in_thread_if_needed(options[:threaded]) do 
         config[:urls].each do |url,expected_status|
           measure = Benchmark.realtime {
-            assert_code(expected_status,send(fetcher,url))
+            assert_code(expected_status,send(fetcher,url),i)
           }
           m.synchronize { measures << measure }
         end
@@ -66,7 +66,14 @@ module PerformanceTest
   end
 
   def self.fetch_with_curl(url)
-    code = `curl -sL -w "%{http_code}" "#{url}" -o /dev/null`
+    code = `curl --connect-timeout 10 -sL -w "%{http_code}" "#{url}" -o /dev/null`
+    case $?.exitstatus
+    when 7  then puts 'curl failed to connect'
+    when 56 then puts 'curl failed in recieving network data'
+    when 0  then ; 
+    else puts "curl got #{$?.exitstatus}"
+    end
+    code
   end
 
   def self.fetch_with_net_http(url)
@@ -74,9 +81,9 @@ module PerformanceTest
     response.code
   end
 
-  def self.assert_code(expected_status,code)
+  def self.assert_code(expected_status,code,i)
     if code != expected_status.to_s
-      raise "Expected #{expected_status}, got #{response.code}\n#{response.inspect}"
+      puts "Expected #{expected_status}, got #{code} for ##{i}"
     end
   end
 end
