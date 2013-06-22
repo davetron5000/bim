@@ -115,7 +115,7 @@ def link_version_to_generic(support_dir,pattern,destination)
 end
 
 file SCALA_HOME => "dependency:scala" do
-  link_version_to_generic SUPPORT_DIR,"scala-2.10.0",SCALA_HOME
+  link_version_to_generic SUPPORT_DIR,"scala-2.10",SCALA_HOME
 end
 file ZINC_HOME => "dependency:zinc" do
   link_version_to_generic SUPPORT_DIR,"zinc-",ZINC_HOME
